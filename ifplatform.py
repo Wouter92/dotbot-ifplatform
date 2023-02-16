@@ -5,6 +5,8 @@ import os
 import sys
 import dotbot
 from dotbot.dispatcher import Dispatcher
+from dotbot.util import module
+from dotbot.plugin import Plugin
 
 
 def _inject_distro():
@@ -79,9 +81,22 @@ class IfPlatform(dotbot.Plugin):
         else:
             return True
 
+    def _collect_plugins(self):
+        plugins = []
+        for loaded_module in module.loaded_modules:
+            for name in dir(loaded_module):
+                possible_plugin = getattr(loaded_module, name)
+                try:
+                    if issubclass(possible_plugin, Plugin) and possible_plugin is not Plugin:
+                        plugins.append(possible_plugin)
+                except TypeError:
+                    pass
+        return plugins
+
     def _run_internal(self, data):
         dispatcher = Dispatcher(self._context.base_directory(),
                                 only=self._context.options().only,
                                 skip=self._context.options().skip,
-                                options=self._context.options())
+                                options=self._context.options(),
+                                plugins=self._collect_plugins())
         return dispatcher.dispatch(data)
